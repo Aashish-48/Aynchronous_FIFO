@@ -1,0 +1,175 @@
+module asy_fifo (data_out, full,empty,round, data_in, rd_clk, wr_clk, reset,wr_en,rd_en);
+
+parameter WIDTH = 8;
+
+parameter DEPTH = 16;
+parameter POINTER = 4;
+
+output reg [WIDTH-1 : 0] data_out;
+output reg full;
+output reg empty;
+output reg round;
+
+input [WIDTH-1 : 0] data_in;
+input rd_clk, wr_clk;
+input reset,wr_en,rd_en;
+reg [POINTER-1 : 0] rd_pointer;
+reg [POINTER-1 : 0] rd_pointer_g, rd_sync_1, rd_sync_2;
+reg [POINTER-1 : 0] wr_pointer;
+reg [POINTER-1 : 0] wr_pointer_g, wr_sync_1, wr_sync_2;
+
+
+reg [WIDTH-1 : 0] mem [DEPTH-1 : 0];
+
+reg [POINTER-1 : 0] rd_pointer_sync;
+reg [POINTER-1 : 0] wr_pointer_sync;
+
+
+//for writing
+always@(posedge wr_clk or posedge reset) 
+ begin
+ if(wr_en && !full)
+	mem[wr_pointer] <= data_in;
+ else 
+	mem[wr_pointer] <= mem[wr_pointer];
+ end
+ 
+
+
+//To read from FIFO 
+always @(posedge rd_clk or posedge reset) 
+begin 
+if(reset)
+	data_out<=0;
+ else if(rd_en && !empty)
+	data_out <= mem[rd_pointer];
+	else data_out<=data_out;
+end
+
+//POINTER CONTROL
+ always@(posedge wr_clk or posedge reset)
+ begin
+	if(reset) 
+		wr_pointer <=0;
+ else 
+	begin
+		if(!full && wr_en && wr_pointer)
+			wr_pointer <= wr_pointer+1;
+		else 
+			wr_pointer <=wr_pointer;
+	end
+ end
+ 
+ //rd_pointer 
+ always@(posedge rd_clk or posedge reset)
+ begin
+	if(reset)
+		rd_pointer<=0;
+	else begin 
+	if(!empty && rd_en )
+			rd_pointer <=rd_pointer +1;
+		else 
+			rd_pointer <= rd_pointer;
+	end
+ end 
+ 
+ //FULL LOGIC 
+ always@(posedge wr_clk or posedge reset)
+ begin
+	if(reset)
+		begin
+			full=0;empty=0;
+		end
+	else if(wr_pointer==rd_pointer_sync && round==1)
+		begin
+			empty=1'b0;full=1'b1;
+		end
+	
+ end
+ //empty logic
+  always@(posedge rd_clk or posedge reset)
+ begin
+	if(reset)
+		begin
+			empty<=0;
+		end
+	else if(wr_pointer_sync==rd_pointer && round==0)
+		begin
+			empty<=1'b1;full<=1'b0;
+		end
+	
+ end
+ 
+		
+
+
+ //Round Logic
+ always@(posedge wr_clk or posedge reset)
+ begin
+	if(reset)
+		round<=0;
+	else
+	if(wr_pointer==(DEPTH-1))
+	begin 
+		 round<=~ round;
+	end 
+ end 
+ 
+ always@(posedge rd_clk or posedge reset)
+ begin
+	if(reset)
+		round<=0;
+	else
+	if(rd_pointer==(DEPTH-1))
+	begin
+		 round<=~ round;
+	end
+ end 
+ 
+ 
+
+
+always@(posedge rd_clk)
+begin
+ wr_pointer_g[3]<= wr_pointer[3] ;
+ wr_pointer_g[2]<= wr_pointer[3]^ wr_pointer[2];
+ wr_pointer_g[1]<= wr_pointer[2]^ wr_pointer[1];
+ wr_pointer_g[0]<= wr_pointer[1]^ wr_pointer[0];
+end
+
+
+always@(posedge wr_clk)
+begin
+ rd_pointer_g[3]<= rd_pointer[3] ;
+ rd_pointer_g[2]<= rd_pointer[3]^ rd_pointer[2];
+ rd_pointer_g[1]<= rd_pointer[2]^ rd_pointer[1];
+ rd_pointer_g[0]<= rd_pointer[1]^ rd_pointer[0];
+end
+
+
+//--read pointer synchronizer controled by write clock--//
+always @(posedge rd_clk) begin
+	rd_sync_1 <= rd_pointer_g;
+	rd_sync_2 <= rd_sync_1;
+end
+
+
+//--write pointer synchronizer controled by read clock--//
+always @(posedge wr_clk) begin
+	wr_sync_1 <= wr_pointer_g;
+	wr_sync_2 <= wr_sync_1;
+end
+
+//--gray code to binary code--//
+always@(posedge rd_clk)
+begin
+ wr_pointer_sync <= wr_sync_2 ^ (wr_sync_2 >> 1) ^(wr_sync_2 >> 2) ^ (wr_sync_2 >> 3);
+end
+
+always@(posedge wr_clk)
+begin
+ rd_pointer_sync <= rd_sync_2 ^ (rd_sync_2 >> 1) ^(rd_sync_2 >> 2) ^ (rd_sync_2 >> 3);
+end 
+
+
+endmodule
