@@ -1,0 +1,126 @@
+`timescale 1ns / 1ps
+
+
+module FIFO_TB;
+
+	// Inputs
+	reg [7:0] data_in;
+	reg rd_clk;
+	reg wr_clk;
+	reg reset;
+	reg wr_en;
+	reg rd_en;
+	reg tempdata;
+
+	// Outputs
+	wire [7:0] data_out;
+	wire full;
+	wire empty;
+	wire round;
+	wire [3:0]wr_pointer;
+	wire [3:0]rd_pointer;
+	wire [3:0]wr_pointer_sync;
+	wire [3:0]rd_pointer_sync;
+	
+
+
+	// Instantiate the Unit Under Test (UUT)
+	asy_fifo uut (
+		.data_out(data_out), 
+		.full(full), 
+		.empty(empty), 
+		.round(round), 
+		.data_in(data_in), 
+		.rd_clk(rd_clk), 
+		.wr_clk(wr_clk), 
+		.reset(reset), 
+		.wr_en(wr_en), 
+		.rd_en(rd_en)
+	);
+
+	initial begin
+		// Initialize Inputs
+		data_in = 0;
+		rd_clk = 0;
+		wr_clk = 0;
+		reset = 1;
+		wr_en = 0;
+		rd_en = 0;
+
+		// Wait 100 ns for global reset to finish
+		#20; reset=0;
+        push(1);
+		//fork 
+		push(2);
+		pop(tempdata);
+		//join
+		push(10);
+		push(20);
+		push(30);
+		push(40);
+		push(50);
+		push(60);
+		push(70);
+		push(80);
+		push(90);
+		push(100);
+		push(200);
+		push(255);
+		push(125);
+		push(155);
+		push(154);
+		push(153);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		push(156);#10
+	   pop(tempdata);
+		push(157);#10
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		pop(tempdata);
+		// Add stimulus here
+
+	end
+  always #5 wr_clk=~wr_clk;
+  always #10 rd_clk=~rd_clk;
+  
+  task push;
+	input [7:0]data;
+	if(full)
+	$display("Memory is full");
+	else
+	begin
+	$display("Pushed",data);
+	data_in=data;
+	wr_en=1;
+	@(posedge wr_clk);
+	#1 wr_en=0;
+	end
+	endtask
+	
+	task pop;
+		output [7:0]data;
+		if(empty)
+		$display("Memory is empty");
+		else 
+		begin
+			rd_en=1;
+			data=data_out;
+			$display("Poped",data);
+			@(posedge rd_clk);
+			#1 rd_en =0;
+		end 
+	endtask
+	
+endmodule
+
